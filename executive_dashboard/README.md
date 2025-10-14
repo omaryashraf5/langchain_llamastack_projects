@@ -10,21 +10,21 @@ A comprehensive executive dashboard built with Streamlit, Pandas, and LangChain 
 - **Inventory Management**: Stock levels, inventory turnover, low stock alerts
 - **Customer Satisfaction**: Average satisfaction scores, customer lifetime value
 
-### 📈 Visualizations
+### Visualizations
 - **Time-Series Charts**: Revenue trends over time
 - **Bar Charts**: Store performance comparisons, regional profit margins
 - **Heatmaps**: Regional performance metrics (Revenue, Cost, Profit)
 - **Pie Charts**: Inventory distribution by stock levels
 - **KPI Indicators**: Real-time metric displays
 
-### 💬 Natural Language Queries
+### Natural Language Queries
 Ask questions in plain English:
 - "Which stores are underperforming in Q3 2025?"
 - "What's driving high costs in Region X?"
 - "Show top stores by profit"
 - "Which items have low stock levels?"
 
-### 🚨 Anomaly Detection
+### Anomaly Detection
 Automatic detection and alerts for:
 - Stores with revenue significantly above/below average
 - Critically low inventory levels
