@@ -4,7 +4,7 @@ A comprehensive executive dashboard built with Streamlit, Pandas, and LangChain 
 
 ## Features
 
-### 📊 Key Metrics
+### Key Metrics
 - **Revenue Tracking**: Total revenue, average transaction values, transaction counts
 - **Profit Analysis**: Profit margins, gross profit calculations by region
 - **Inventory Management**: Stock levels, inventory turnover, low stock alerts
@@ -209,17 +209,7 @@ The dashboard uses Streamlit's caching mechanisms:
 - Check LangChain installation: `pip install langchain`
 - Queries work without LLM using pattern matching
 
-## Future Enhancements
-
-Potential improvements:
-- Real-time data updates
-- LLM integration for advanced queries
-- Export functionality (PDF reports, Excel exports)
-- Drill-down capabilities for detailed analysis
-- Time-based filtering (quarters, months, custom ranges)
-- Predictive analytics and forecasting
-- Multi-user authentication and role-based access
 
 ## License
 
-This
+MIT License
