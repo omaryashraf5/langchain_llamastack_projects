@@ -2,14 +2,14 @@ import os
 from datetime import datetime
 from typing import Dict, List, Optional
 
-import requests
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_llama_stack import ChatLlamaStack
 
 
 class LlamaStackLLM:
     """LlamaStack integration with conversation history for follow-ups
 
-    LlamaStack acts as a wrapper around Ollama, providing a unified API
-    for inference with better request/response handling.
+    Uses the official ChatLlamaStack from langchain-llama-stack package.
     """
 
     def __init__(
@@ -24,7 +24,16 @@ class LlamaStackLLM:
         )
         self.model = model or os.getenv("LLAMASTACK_MODEL", "ollama/llama3.3:70b")
         self.temperature = temperature
-        self.endpoint = f"{self.api_url}/v1/openai/v1/chat/completions"
+
+        # ChatLlamaStack needs the OpenAI-compatible endpoint
+        openai_endpoint = f"{self.api_url}/v1/openai/v1/"
+
+        # Initialize ChatLlamaStack
+        self.llm = ChatLlamaStack(
+            model=self.model,
+            base_url=openai_endpoint,
+            temperature=self.temperature,
+        )
 
         # Conversation history management
         self.max_history = max_history
@@ -38,61 +47,49 @@ class LlamaStackLLM:
         max_tokens: Optional[int] = None,
         stream: bool = False,
     ) -> str:
-        """Send chat completion request to LlamaStack
-
-        LlamaStack uses OpenAI-compatible API format.
-        """
-
-        payload = {
-            "model": self.model,
-            "messages": messages,
-            "temperature": temperature or self.temperature,
-            "stream": stream,
-        }
-
-        if max_tokens:
-            payload["max_tokens"] = max_tokens
+        """Send chat completion request to LlamaStack using ChatLlamaStack"""
 
         try:
-            response = requests.post(
-                self.endpoint,
-                json=payload,
-                headers={"Content-Type": "application/json"},
-                timeout=120,  # LlamaStack can be slow on first request
-            )
-            response.raise_for_status()
+            # Convert messages format for LangChain
+            lc_messages = []
+            for msg in messages:
+                if msg["role"] == "system":
+                    lc_messages.append(SystemMessage(content=msg["content"]))
+                elif msg["role"] == "user":
+                    lc_messages.append(HumanMessage(content=msg["content"]))
+                elif msg["role"] == "assistant":
+                    lc_messages.append(AIMessage(content=msg["content"]))
 
-            result = response.json()
+            # Create a temporary LLM instance with custom parameters if needed
+            if temperature is not None or max_tokens is not None:
+                openai_endpoint = f"{self.api_url}/v1/openai/v1/"
+                kwargs = {"model": self.model, "base_url": openai_endpoint}
+                if temperature is not None:
+                    kwargs["temperature"] = temperature
+                if max_tokens is not None:
+                    kwargs["max_tokens"] = max_tokens
+                temp_llm = ChatLlamaStack(**kwargs)
+                response = temp_llm.invoke(lc_messages)
+            else:
+                response = self.llm.invoke(lc_messages)
 
-            # Extract content from OpenAI-compatible format
-            return result["choices"][0]["message"]["content"]
+            return response.content
 
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             return f"Error calling LlamaStack API: {str(e)}"
-        except (KeyError, IndexError) as e:
-            return f"Error parsing LlamaStack response: {str(e)}"
 
     def is_available(self) -> bool:
         """Check if LlamaStack is available"""
         try:
             # Try a minimal chat completion to verify service
-            test_payload = {
-                "model": self.model,
-                "messages": [{"role": "user", "content": "hi"}],
-                "max_tokens": 1,
-                "stream": False,
-            }
-            response = requests.post(
-                self.endpoint,
-                json=test_payload,
-                headers={"Content-Type": "application/json"},
-                timeout=10,
-            )
-            return response.status_code == 200
-        except:
+            response = self.llm.invoke([HumanMessage(content="hi")])
+            return bool(response.content)
+        except Exception as e:
+            # Print error for debugging
+            print(f"LLM availability check failed: {e}")
             return False
 
-    def chat_with_history(
+    def send_message(
         self,
         user_message: str,
         system_message: Optional[str] = None,
@@ -148,7 +145,7 @@ class LlamaStackLLM:
             "session_duration": str(datetime.now() - self.session_start),
             "session_start": self.session_start.strftime("%Y-%m-%d %H:%M:%S"),
             "model": self.model,
-            "provider": "LlamaStack (Ollama wrapper)",
+            "provider": "LlamaStack (ChatLlamaStack)",
         }
 
     def undo_last_exchange(self):
