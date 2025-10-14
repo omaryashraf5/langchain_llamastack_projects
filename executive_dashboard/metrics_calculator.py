@@ -39,20 +39,33 @@ class MetricsCalculator:
 
     def calculate_profit_margins(self) -> Dict[str, float]:
         product_sales = self.data_loader.product_sales
+        inventory_data = self.data_loader.inventory_data
 
         if product_sales is None:
             return {}
 
         metrics = {}
 
+        # Merge with inventory_data to get UnitCost
         if (
-            "TotalPrice" in product_sales.columns
-            and "UnitCost" in product_sales.columns
+            inventory_data is not None
+            and "UnitCost" in inventory_data.columns
+            and "TotalPrice" in product_sales.columns
         ):
-            total_revenue = product_sales["TotalPrice"].sum()
+            # Merge product_sales with inventory_data to get cost information
+            merged = product_sales.merge(
+                inventory_data[["ProductName", "UnitCost"]],
+                left_on="Product",
+                right_on="ProductName",
+                how="left"
+            )
+
+            # Calculate totals
+            total_revenue = merged["TotalPrice"].sum()
             total_cost = (
-                product_sales["UnitCost"] * product_sales.get("Quantity", 1)
+                merged["UnitCost"].fillna(0) * merged["Quantity"]
             ).sum()
+
             metrics["overall_margin"] = (
                 ((total_revenue - total_cost) / total_revenue * 100)
                 if total_revenue > 0
@@ -140,21 +153,40 @@ class MetricsCalculator:
 
     def get_regional_performance(self) -> pd.DataFrame:
         product_sales = self.data_loader.product_sales
+        inventory_data = self.data_loader.inventory_data
 
         if product_sales is None or "Region" not in product_sales.columns:
             return pd.DataFrame()
 
-        product_sales["TotalCost"] = (
-            product_sales["UnitCost"] * product_sales.get("Quantity", 1)
-            if "UnitCost" in product_sales.columns
-            else 0
-        )
+        # Merge with inventory_data to get UnitCost
+        if inventory_data is not None and "UnitCost" in inventory_data.columns:
+            # Merge product_sales with inventory_data to get cost information
+            merged = product_sales.merge(
+                inventory_data[["ProductName", "UnitCost"]],
+                left_on="Product",
+                right_on="ProductName",
+                how="left"
+            )
 
-        regional_metrics = (
-            product_sales.groupby("Region")
-            .agg({"TotalPrice": "sum", "TotalCost": "sum"})
-            .round(2)
-        )
+            # Calculate total cost (handle NaN values from left join)
+            merged["TotalCost"] = (
+                merged["UnitCost"].fillna(0) * merged["Quantity"]
+            )
+
+            # Calculate regional metrics
+            regional_metrics = (
+                merged.groupby("Region")
+                .agg({"TotalPrice": "sum", "TotalCost": "sum"})
+                .round(2)
+            )
+        else:
+            # Fallback: if no cost data available, set costs to 0
+            regional_metrics = (
+                product_sales.groupby("Region")
+                .agg({"TotalPrice": "sum"})
+                .round(2)
+            )
+            regional_metrics["TotalCost"] = 0
 
         regional_metrics["Profit"] = (
             regional_metrics["TotalPrice"] - regional_metrics["TotalCost"]

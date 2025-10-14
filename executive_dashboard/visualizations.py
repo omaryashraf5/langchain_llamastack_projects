@@ -154,9 +154,13 @@ class DashboardVisualizations:
         if customers is None:
             return None
 
+        # Look for purchase amount column
         amount_col = None
         for col in customers.columns:
-            if "spent" in col.lower() or "amount" in col.lower():
+            if any(
+                keyword in col.lower()
+                for keyword in ["spent", "amount", "price", "total"]
+            ):
                 amount_col = col
                 break
 

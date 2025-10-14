@@ -160,8 +160,18 @@ def main():
 
         st.subheader("Detailed Store Data")
         if data_loader.store_transactions is not None:
+            # Hide Location column as it contains inconsistent data
+            display_cols = [
+                col
+                for col in data_loader.store_transactions.columns
+                if col != "Location"
+            ]
             st.dataframe(
-                data_loader.store_transactions.head(100), use_container_width=True
+                data_loader.store_transactions[display_cols].head(100),
+                use_container_width=True,
+            )
+            st.caption(
+                "Note: Location column hidden due to data quality issues. Use StoreID for store identification."
             )
 
     with tab3:
@@ -312,9 +322,49 @@ def main():
                     if not use_code_gen
                     else "Generating and executing code..."
                 ):
-                    answer = query_agent.query(question, use_code_gen=use_code_gen)
-                    st.markdown("### Answer:")
-                    st.success(answer)
+                    answer, viz = query_agent.query(question, use_code_gen=use_code_gen)
+
+                    # Handle both dictionary and string responses
+                    if isinstance(answer, dict):
+                        analysis = answer.get("analysis", "")
+                        code = answer.get("code", "")
+                        result_type = answer.get("result_type", "Unknown")
+
+                        # Display answer in left column, viz in right if available
+                        if viz is not None:
+                            col1, col2 = st.columns([1, 1])
+                            with col1:
+                                st.markdown("### Answer:")
+                                st.success(analysis)
+
+                                # Show code in expander
+                                with st.expander("🔍 View Generated Code"):
+                                    st.code(code, language="python")
+                                    st.caption(f"**Result Type:** {result_type}")
+                            with col2:
+                                st.markdown("### Visualization:")
+                                st.plotly_chart(viz, use_container_width=True)
+                        else:
+                            st.markdown("### Answer:")
+                            st.success(analysis)
+
+                            # Show code in expander
+                            with st.expander("🔍 View Generated Code"):
+                                st.code(code, language="python")
+                                st.caption(f"**Result Type:** {result_type}")
+                    else:
+                        # Handle string responses (fallback mode)
+                        if viz is not None:
+                            col1, col2 = st.columns([1, 1])
+                            with col1:
+                                st.markdown("### Answer:")
+                                st.success(answer)
+                            with col2:
+                                st.markdown("### Visualization:")
+                                st.plotly_chart(viz, use_container_width=True)
+                        else:
+                            st.markdown("### Answer:")
+                            st.success(answer)
 
                     # Show conversation tip
                     if query_agent.llm_available:

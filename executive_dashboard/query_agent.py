@@ -74,7 +74,12 @@ class QueryAgent:
         except Exception as e:
             print(f"Error setting up agent: {e}")
 
-    def query(self, question: str, use_code_gen: bool = None) -> str:
+    def query(self, question: str, use_code_gen: bool = None):
+        """Query the data and return (text_response, visualization_figure)
+
+        Returns:
+            Tuple of (str, Optional[plotly.graph_objects.Figure])
+        """
         # Auto-enable code generation if not specified
         if use_code_gen is None:
             use_code_gen = self.use_code_generation
@@ -86,17 +91,20 @@ class QueryAgent:
                     return self.code_generator.query_with_code_generation(question)
                 except Exception as e:
                     # Fallback to text-based approach if code gen fails
-                    return self._query_with_llm(question)
+                    return (self._query_with_llm(question), None)
             else:
-                return self._query_with_llm(question)
+                return (self._query_with_llm(question), None)
         elif self.agent is not None:
             try:
                 response = self.agent.run(question)
-                return response
+                return (response, None)
             except Exception as e:
-                return f"Error processing query: {str(e)}\n\nTrying fallback method..."
+                return (
+                    f"Error processing query: {str(e)}\n\nTrying fallback method...",
+                    None,
+                )
         else:
-            return self._fallback_query(question)
+            return (self._fallback_query(question), None)
 
     def _query_with_llm(self, question: str, use_history: bool = True) -> str:
         try:

@@ -15,16 +15,16 @@ class LlamaStackLLM:
     def __init__(
         self,
         api_url: str = None,
-        model: str = "llama3:70b-instruct",
+        model: str = "ollama/llama3.3:70b",
         temperature: float = 0.7,
         max_history: int = 10,
     ):
         self.api_url = api_url or os.getenv(
             "LLAMASTACK_API_URL", "http://localhost:8321"
         )
-        self.model = model or os.getenv("LLAMASTACK_MODEL", "llama3:70b-instruct")
+        self.model = model or os.getenv("LLAMASTACK_MODEL", "ollama/llama3.3:70b")
         self.temperature = temperature
-        self.endpoint = f"{self.api_url}/v1/chat/completions"
+        self.endpoint = f"{self.api_url}/v1/openai/v1/chat/completions"
 
         # Conversation history management
         self.max_history = max_history
