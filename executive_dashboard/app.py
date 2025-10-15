@@ -259,23 +259,8 @@ def main():
 
         st.markdown("---")
 
-        # Query mode selection
-        if query_agent.llm_available:
-            st.subheader("Query Mode")
-            query_mode = st.radio(
-                "Select how to process your question:",
-                options=[
-                    "🚀 Dynamic Code Generation (Recommended)",
-                    "📝 Text Analysis",
-                ],
-                help="Code Generation: LLM generates and executes pandas code for precise results.\nText Analysis: LLM analyzes pre-computed summaries (faster but less flexible)",
-                horizontal=True,
-            )
-            use_code_gen = "Dynamic Code" in query_mode
-
-            st.markdown("---")
-        else:
-            use_code_gen = False
+        # Always use code generation mode (only LLM-based approach)
+        use_code_gen = True
 
         # Conversation controls
         if query_agent.llm_available:

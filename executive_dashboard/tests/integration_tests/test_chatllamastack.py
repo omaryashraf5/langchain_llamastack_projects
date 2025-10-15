@@ -1,7 +1,20 @@
 #!/usr/bin/env python3
-"""Test ChatLlamaStack directly"""
+"""Test ChatLlamaStack directly
 
+NOTE: This is an integration test that requires a running LlamaStack server.
+It will be skipped in CI environments.
+"""
+
+import os
 import sys
+
+import pytest
+
+# Skip this test in CI environments
+pytestmark = pytest.mark.skipif(
+    os.getenv("CI") == "true",
+    reason="Integration test - requires running LlamaStack server",
+)
 
 print("=" * 60)
 print("Testing ChatLlamaStack Installation and Functionality")

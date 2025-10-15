@@ -80,31 +80,27 @@ class QueryAgent:
         Returns:
             Tuple of (str, Optional[plotly.graph_objects.Figure])
         """
+        # Check if LLM is available
+        if not self.llm_available:
+            return (
+                "❌ LLM is not available. Please ensure LlamaStack server is running and configured correctly.",
+                None,
+            )
+
         # Auto-enable code generation if not specified
         if use_code_gen is None:
             use_code_gen = self.use_code_generation
 
-        if self.use_llamastack and self.llm_available:
-            # Try code generation approach if enabled
-            if use_code_gen and self.code_generator:
-                try:
-                    return self.code_generator.query_with_code_generation(question)
-                except Exception as e:
-                    # Fallback to text-based approach if code gen fails
-                    return (self._query_with_llm(question), None)
-            else:
-                return (self._query_with_llm(question), None)
-        elif self.agent is not None:
+        # Try code generation approach if enabled
+        if use_code_gen and self.code_generator:
             try:
-                response = self.agent.run(question)
-                return (response, None)
+                return self.code_generator.query_with_code_generation(question)
             except Exception as e:
-                return (
-                    f"Error processing query: {str(e)}\n\nTrying fallback method...",
-                    None,
-                )
+                # Fallback to text-based LLM approach if code gen fails
+                return (self._query_with_llm(question), None)
         else:
-            return (self._fallback_query(question), None)
+            # Use text-based LLM approach
+            return (self._query_with_llm(question), None)
 
     def _query_with_llm(self, question: str, use_history: bool = True) -> str:
         try:
@@ -197,99 +193,3 @@ Break down complex metrics into understandable components."""
         if self.llm_backend:
             return self.llm_backend.undo_last_exchange()
         return False
-
-    def _fallback_query(self, question: str) -> str:
-        question_lower = question.lower()
-
-        if "underperforming" in question_lower or "worst" in question_lower:
-            return self._get_underperforming_stores()
-        elif "top" in question_lower and "store" in question_lower:
-            return self._get_top_stores()
-        elif "region" in question_lower and (
-            "cost" in question_lower or "expense" in question_lower
-        ):
-            return self._analyze_regional_costs()
-        elif "profit" in question_lower:
-            return self._get_top_stores_by_profit()
-        else:
-            return "I can help you with queries about store performance, regional metrics, costs, and profits. Try asking: 'Which stores are underperforming?' or 'Show top stores by profit.'"
-
-    def _get_underperforming_stores(self) -> str:
-        transactions = self.data_loader.store_transactions
-        if transactions is None or "StoreID" not in transactions.columns:
-            return "Store transaction data not available."
-
-        store_revenue = (
-            transactions.groupby("StoreID")["TotalPrice"].sum().sort_values()
-        )
-        bottom_stores = store_revenue.head(5)
-
-        result = "Bottom 5 Underperforming Stores:\n"
-        for store_id, revenue in bottom_stores.items():
-            result += f"- Store {store_id}: ${revenue:,.2f}\n"
-
-        return result
-
-    def _get_top_stores(self) -> str:
-        transactions = self.data_loader.store_transactions
-        if transactions is None or "StoreID" not in transactions.columns:
-            return "Store transaction data not available."
-
-        store_revenue = (
-            transactions.groupby("StoreID")["TotalPrice"]
-            .sum()
-            .sort_values(ascending=False)
-        )
-        top_stores = store_revenue.head(5)
-
-        result = "Top 5 Performing Stores:\n"
-        for store_id, revenue in top_stores.items():
-            result += f"- Store {store_id}: ${revenue:,.2f}\n"
-
-        return result
-
-    def _analyze_regional_costs(self) -> str:
-        product_sales = self.data_loader.product_sales
-        if product_sales is None or "Region" not in product_sales.columns:
-            return "Regional sales data not available."
-
-        product_sales["TotalCost"] = (
-            product_sales["UnitCost"] * product_sales.get("Quantity", 1)
-            if "UnitCost" in product_sales.columns
-            else 0
-        )
-
-        regional_costs = product_sales.groupby("Region").agg(
-            {"TotalCost": "sum", "TotalPrice": "sum"}
-        )
-        regional_costs["Cost_Ratio"] = (
-            regional_costs["TotalCost"] / regional_costs["TotalPrice"] * 100
-        ).round(2)
-        regional_costs = regional_costs.sort_values("Cost_Ratio", ascending=False)
-
-        result = "Regional Cost Analysis:\n"
-        for region, row in regional_costs.iterrows():
-            result += f"- {region}: Cost Ratio = {row['Cost_Ratio']}%, Total Costs = ${row['TotalCost']:,.2f}\n"
-
-        return result
-
-    def _get_top_stores_by_profit(self) -> str:
-        transactions = self.data_loader.store_transactions
-        if transactions is None or "StoreID" not in transactions.columns:
-            return "Store transaction data not available."
-
-        store_metrics = (
-            transactions.groupby("StoreID")
-            .agg(
-                {
-                    "TotalPrice": "sum",
-                }
-            )
-            .sort_values("TotalPrice", ascending=False)
-        )
-
-        result = "Top Stores by Revenue (proxy for profit):\n"
-        for store_id, row in store_metrics.head(5).iterrows():
-            result += f"- Store {store_id}: ${row['TotalPrice']:,.2f}\n"
-
-        return result

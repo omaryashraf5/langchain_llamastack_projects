@@ -1,7 +1,20 @@
 #!/usr/bin/env python3
-"""Test script to diagnose LLM connection issues"""
+"""Test script to diagnose LLM connection issues
 
+NOTE: This is an integration test that requires a running LlamaStack server.
+It will be skipped in CI environments.
+"""
+
+import os
 import sys
+
+import pytest
+
+# Skip this test in CI environments
+pytestmark = pytest.mark.skipif(
+    os.getenv("CI") == "true",
+    reason="Integration test - requires running LlamaStack server",
+)
 
 sys.path.insert(0, "/home/omara/langchain_llamastack_projects/executive_dashboard")
 
@@ -17,7 +30,6 @@ llm = LlamaStackLLM()
 print(f"\nConfiguration:")
 print(f"  API URL: {llm.api_url}")
 print(f"  Model: {llm.model}")
-print(f"  Endpoint: {llm.endpoint}")
 
 # Test availability
 print(f"\nTesting availability...")
